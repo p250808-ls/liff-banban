@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My LIFF Test</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f4f7f6; }
+        .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; width: 80%; max-width: 400px; }
+        #profilePic { width: 100px; height: 100px; border-radius: 50%; margin-bottom: 1rem; display: none; }
+        button { background-color: #00b900; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; margin-top: 1rem; }
+        button:disabled { background-color: #ccc; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>LIFF 測試頁面</h2>
+        <img id="profilePic" src="" alt="User Profile">
+        <p id="status">初始化中...</p>
+        <p id="userName"></p>
+        
+        <button id="sendBtn" onclick="sendMsg()" disabled>發送測試訊息</button>
+        <button onclick="liff.closeWindow()">關閉視窗</button>
+    </div>
+
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    
+    <script>
+        // 2. 填入你在 LINE Developers 取得的 LIFF ID
+        const MY_LIFF_ID = '2009030695-F4SwMfYB'; 
+
+        async function main() {
+            try {
+                // 3. 初始化 LIFF
+                await liff.init({ liffId: MY_LIFF_ID });
+                
+                if (!liff.isLoggedIn()) {
+                    liff.login(); // 如果沒登入則跳轉登入
+                } else {
+                    document.getElementById('status').innerText = "已成功登入！";
+                    getUserProfile();
+                }
+            } catch (error) {
+                document.getElementById('status').innerText = "初始化失敗: " + error;
+            }
+        }
+
+        async function getUserProfile() {
+            const profile = await liff.getProfile();
+            document.getElementById('userName').innerText = "你好, " + profile.displayName;
+            const pic = document.getElementById('profilePic');
+            pic.src = profile.pictureUrl;
+            pic.style.display = "inline-block";
+            document.getElementById('sendBtn').disabled = false;
+        }
+
+        async function sendMsg() {
+            try {
+                // 4. 發送訊息回聊天室 (這會觸發你的 n8n Webhook)
+                await liff.sendMessages([
+                    {
+                        type: 'text',
+                        text: '這是一則從 LIFF 發送的訊息！'
+                    }
+                ]);
+                alert('訊息已發送！');
+                liff.closeWindow(); // 發送完自動關閉
+            } catch (error) {
+                alert('發送失敗 (請確認是否在 LINE 內開啟): ' + error);
+            }
+        }
+
+        main();
+    </script>
+</body>
+</html>

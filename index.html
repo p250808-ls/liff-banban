@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>填寫報修/申請單</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        input, button { width: 100%; padding: 10px; margin: 10px 0; }
+        button { background-color: #00B900; color: white; border: none; }
+    </style>
+</head>
+<body>
+    <h2>服務申請表</h2>
+    <input type="text" id="username" placeholder="姓名">
+    <input type="text" id="issue" placeholder="申請事項/內容">
+    <button onclick="sendData()">送出</button>
+
+    <script>
+        // 初始化 LIFF
+        async function main() {
+            await liff.init({ liffId: "2009030695-F4SwMfYB" });
+            if (!liff.isLoggedIn()) {
+                liff.login();
+            }
+        }
+        main();
+
+        async function sendData() {
+            const profile = await liff.getProfile(); // 取得使用者資料
+            const data = {
+                userId: profile.userId,
+                displayName: profile.displayName,
+                name: document.getElementById('username').value,
+                issue: document.getElementById('issue').value
+            };
+
+            // 將資料傳送到 n8n
+            await fetch('https://n8n-lishin.zeabur.app/webhook-test/4e47c984-a318-456f-9688-08a15fbe5ba6L', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            alert('送出成功！');
+            liff.closeWindow(); // 關閉視窗
+        }
+    </script>
+</body>
+</html>

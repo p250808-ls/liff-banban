@@ -6,46 +6,203 @@
     <title>填寫報修/申請單</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { font-family: sans-serif; padding: 20px; }
-        input, button { width: 100%; padding: 10px; margin: 10px 0; }
-        button { background-color: #00B900; color: white; border: none; }
+        body { 
+            font-family: sans-serif; 
+            padding: 20px; 
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        input, button { 
+            width: 100%; 
+            padding: 10px; 
+            margin: 10px 0; 
+            box-sizing: border-box;
+        }
+        button { 
+            background-color: #00B900; 
+            color: white; 
+            border: none; 
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            display: none;
+        }
+        .message.show {
+            display: block;
+        }
+        .message.error {
+            background-color: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef5350;
+        }
+        .message.success {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #66bb6a;
+        }
+        #loading {
+            text-align: center;
+            color: #00B900;
+            display: none;
+        }
+        #loading.show {
+            display: block;
+        }
     </style>
 </head>
 <body>
     <h2>服務申請表</h2>
-    <input type="text" id="username" placeholder="姓名">
-    <input type="text" id="issue" placeholder="申請事項/內容">
-    <button onclick="sendData()">送出</button>
+    
+    <div id="message" class="message"></div>
+    
+    <input type="text" id="username" placeholder="姓名" required>
+    <input type="text" id="issue" placeholder="申請事項/內容" required>
+    
+    <button id="submitBtn" onclick="sendData()">送出</button>
+    
+    <div id="loading">處理中...</div>
 
     <script>
+        let liffInitialized = false;
+
         // 初始化 LIFF
         async function main() {
-            await liff.init({ liffId: "2009030695-F4SwMfYB" });
-            if (!liff.isLoggedIn()) {
-                liff.login();
+            try {
+                console.log('開始初始化 LIFF...');
+                await liff.init({ liffId: "2009030695-F4SwMfYB" });
+                console.log('LIFF 初始化成功');
+                
+                if (!liff.isLoggedIn()) {
+                    console.log('使用者未登入，重新導向登入頁');
+                    liff.login();
+                    return;
+                }
+                
+                liffInitialized = true;
+                console.log('使用者已登入');
+                
+                // 取得使用者資料並自動填入姓名
+                const profile = await liff.getProfile();
+                console.log('取得使用者資料:', profile.displayName);
+                document.getElementById('username').value = profile.displayName;
+                
+            } catch (error) {
+                console.error('LIFF 初始化失敗:', error);
+                showMessage('初始化失敗: ' + error.message, 'error');
             }
         }
-        main();
 
+        // 送出資料
         async function sendData() {
-            const profile = await liff.getProfile(); // 取得使用者資料
-            const data = {
-                userId: profile.userId,
-                displayName: profile.displayName,
-                name: document.getElementById('username').value,
-                issue: document.getElementById('issue').value
-            };
+            // 檢查 LIFF 是否初始化
+            if (!liffInitialized) {
+                showMessage('請稍候，系統初始化中...', 'error');
+                return;
+            }
 
-            // 將資料傳送到 n8n
-            await fetch('https://n8n-lishin.zeabur.app/webhook-test/4e47c984-a318-456f-9688-08a15fbe5ba6L', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
+            // 取得輸入值
+            const username = document.getElementById('username').value.trim();
+            const issue = document.getElementById('issue').value.trim();
 
-            alert('送出成功！');
-            liff.closeWindow(); // 關閉視窗
+            // 驗證輸入
+            if (!username) {
+                showMessage('請輸入姓名', 'error');
+                return;
+            }
+
+            if (!issue) {
+                showMessage('請輸入申請事項/內容', 'error');
+                return;
+            }
+
+            // 顯示載入狀態
+            const submitBtn = document.getElementById('submitBtn');
+            const loading = document.getElementById('loading');
+            submitBtn.disabled = true;
+            loading.classList.add('show');
+            hideMessage();
+
+            try {
+                console.log('開始取得使用者資料...');
+                const profile = await liff.getProfile();
+                
+                const data = {
+                    userId: profile.userId,
+                    displayName: profile.displayName,
+                    pictureUrl: profile.pictureUrl || '',
+                    name: username,
+                    issue: issue,
+                    timestamp: new Date().toISOString(),
+                    timestampLocal: new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })
+                };
+
+                console.log('準備送出資料:', data);
+
+                // 修正後的 Webhook URL（移除結尾的 L）
+                const webhookUrl = 'https://n8n-lishin.zeabur.app/webhook-test/4e47c984-a318-456f-9688-08a15fbe5ba6';
+                
+                console.log('發送請求到:', webhookUrl);
+                
+                const response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                console.log('收到回應，狀態碼:', response.status);
+
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('回應內容:', result);
+                    
+                    showMessage('✅ 送出成功！', 'success');
+                    
+                    // 2秒後關閉視窗
+                    setTimeout(() => {
+                        if (liff.isInClient()) {
+                            liff.closeWindow();
+                        }
+                    }, 2000);
+                } else {
+                    const errorText = await response.text();
+                    console.error('伺服器錯誤:', errorText);
+                    throw new Error(`伺服器回應錯誤 (${response.status})`);
+                }
+
+            } catch (error) {
+                console.error('送出失敗:', error);
+                showMessage('❌ 送出失敗: ' + error.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                loading.classList.remove('show');
+            }
         }
+
+        // 顯示訊息
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type} show`;
+        }
+
+        // 隱藏訊息
+        function hideMessage() {
+            const messageDiv = document.getElementById('message');
+            messageDiv.classList.remove('show');
+        }
+
+        // 頁面載入時初始化
+        window.addEventListener('load', main);
     </script>
 </body>
 </html>

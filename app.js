@@ -1,7 +1,7 @@
 // app.js
 async function initializeLiff() {
     // 1. 初始化 LIFF
-    await liff.init({ liffId: "你的_LIFF_ID" });
+    await liff.init({ liffId: "2009030695-F4SwMfYB" });
 
     // 2. 檢查登入
     if (!liff.isLoggedIn()) {
@@ -29,7 +29,7 @@ async function initializeLiff() {
 
         // 5. 傳送至 n8n Webhook
         try {
-            const response = await fetch('你的_N8N_WEBHOOK_URL', {
+            const response = await fetch('https://n8n-lishin.zeabur.app/webhook-test/4e47c984-a318-456f-9688-08a15fbe5ba6', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
